@@ -23,13 +23,13 @@ for intent in data["intents"]:
     for pattern in intent["patterns"]:
         wrds = nltk.word_tokenize(pattern) #Tokenizing compiles each individual word in your string 
         words.extend(wrds)
-        docs_x.append(pattern)
+        docs_x.append(wrds)
         docs_y.append(intent["tag"])
  
     if intent["tag"] not in labels:
         labels.append(intent["tag"])
 
-words = [stemmer.stem(w.lower()) for w in words] #Convert elements within "words" list to lower case
+words = [stemmer.stem(w.lower()) for w in words if w != "?"] #Convert elements within "words" list to lower case
 words = sorted(list(set(words))) #Remove any duplicate elements and sort it into the list
 
 labels = sorted(labels)
@@ -38,7 +38,7 @@ labels = sorted(labels)
 training = []
 output = []
 
-out_empty = [0 for _ in range(len(classes))] #Output list for bot responses
+out_empty = [0 for _ in range(len(labels))] #Output list for bot responses
 
 for x, doc in enumerate(docs_x):
     bag = []
@@ -62,6 +62,23 @@ for x, doc in enumerate(docs_x):
 #Convert initialized lists into NumPy arrays
 training = numpy.array(training)
 output = numpy.array(output)
+
+#Build AI model
+tensorflow.reset_default_graph()
+
+net = tflearn.input_data(shape = [None, len(training[0])]) #Define input shape expected for model i.e. the length of the training array
+net = tflearn.fully_connected(net, 8) #Add fully connected layer to neural network initializing the input data
+net = tflearn.fully_connected(net, 8)
+#Softmax provides a probability for each neuron in the layer which gives us the output for the network
+net = tflearn.fully_connected(net, len(output[0]), activation = "softmax") 
+net = tflearn.regression(net)
+
+model = tflearn.DNN(net)
+
+#Pass training data through the model
+model.fit(training, output, n_epoch=1000, batch_size=8, show_metric=True)
+model.save("model.tflearn")
+
 
 
 
